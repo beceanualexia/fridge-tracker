@@ -1,195 +1,179 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { Outfit } from 'next/font/google';
+"use client";
+import React, { useState, useEffect } from 'react';
+import { Trash2, Plus, AlertCircle, Search } from 'lucide-react';
 
-// 2. Îl configurăm
-const titleFont = Outfit({ 
-  subsets: ['latin'], 
-  weight: ['700'] 
-});
+export default function FridgeTracker() {
+  const [items, setItems] = useState([]);
+  const [newItem, setNewItem] = useState({ name: '', expiryDate: '', category: '' });
+  const [searchTerm, setSearchTerm] = useState('');
 
-export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); 
-  const [searchTerm, setSearchTerm] = useState(''); 
-  
-  const [form, setForm] = useState({ name: '', expiryDate: '' });
-
-  const quickAddItems = [
-    { emoji: '🥛', name: 'Milk' },
-    { emoji: '🥚', name: 'Eggs' },
-    { emoji: '🧀', name: 'Cheese' },
-    { emoji: '🥩', name: 'Meat' },
-    { emoji: '🥗', name: 'Salad' },
-    { emoji: '🥕', name: 'Veggies' }
-  ];
-
-  const sortProducts = (list) => {
-    return list.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
-  };
-
+  // 1. Încărcăm datele din memoria telefonului când se deschide pagina
   useEffect(() => {
-    fetch('/api/products')
-      .then(res => res.json())
-      .then(data => {
-        const sorted = sortProducts(data);
-        setProducts(sorted);
-        setFilteredProducts(sorted); 
-      });
+    const savedItems = localStorage.getItem('fridgeItems');
+    if (savedItems) {
+      setItems(JSON.parse(savedItems));
+    }
   }, []);
 
-  useEffect(() => {
-    const results = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredProducts(results);
-  }, [searchTerm, products]);
-
-  async function addProduct() {
-    if (!form.name || !form.expiryDate) return;
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      body: JSON.stringify(form),
-    });
-    const newProduct = await res.json();
-    
-    const newList = sortProducts([...products, newProduct]);
-    setProducts(newList);
-    setForm({ name: '', expiryDate: '' }); 
-  }
-
-  async function deleteProduct(id) {
-    await fetch('/api/products', {
-      method: 'DELETE',
-      body: JSON.stringify({ id }),
-    });
-    const remaining = products.filter(p => p.id !== id);
-    setProducts(remaining);
-  }
-
-  const fillForm = (itemName) => {
-    setForm({ ...form, name: itemName });
+  // 2. Funcție care salvează lista în memoria telefonului
+  const saveToPhone = (updatedItems) => {
+    setItems(updatedItems);
+    localStorage.setItem('fridgeItems', JSON.stringify(updatedItems));
   };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const addItem = (e) => {
+    e.preventDefault();
+    if (!newItem.name || !newItem.expiryDate) return;
+
+    const itemToAdd = { 
+      id: Date.now(), // Generăm un ID unic bazat pe timp
+      ...newItem 
+    };
+    
+    // Adăugăm noul produs la listă și salvăm
+    const updatedList = [...items, itemToAdd];
+    saveToPhone(updatedList);
+    
+    setNewItem({ name: '', expiryDate: '', category: '' });
+  };
+
+  const deleteItem = (id) => {
+    // Ștergem produsul și salvăm noua listă
+    const updatedList = items.filter(item => item.id !== id);
+    saveToPhone(updatedList);
+  };
+
+  // Logica de culori (Rămâne la fel)
+  const getStatusColor = (dateString) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(dateString);
+    
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'bg-red-500/20 text-red-200 border-red-500/50'; 
+    if (diffDays <= 3) return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/50';
+    return 'bg-green-500/20 text-green-200 border-green-500/50';
+  };
+
+  // Logica de sortare și filtrare (Rămâne la fel)
+  const filteredAndSortedItems = items
+    .filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
+  // QUICK ADD BUTTONS
+  const quickAdd = (name) => {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    const dateStr = nextWeek.toISOString().split('T')[0];
+    
+    const itemToAdd = { id: Date.now(), name, expiryDate: dateStr, category: 'General' };
+    const updatedList = [...items, itemToAdd];
+    saveToPhone(updatedList);
+  };
 
   return (
-    <div className="min-h-screen p-8 font-sans bg-slate-900 text-white">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8 font-sans">
+      <div className="max-w-md mx-auto space-y-6">
         
-        
-        <h1 className={`text-5xl mb-2 text-center text-green-400 ${titleFont.className}`}>
-          Fridge Tracker
-        </h1>
-        
-        <p className="text-center text-gray-400 mb-8">Stop wasting food. Save the planet.</p>
+        {/* HEADER */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Fridge Tracker
+          </h1>
+          <p className="text-slate-400 text-sm">Stop wasting food. Track it.</p>
+        </div>
 
-        {/* --- Add Section --- */}
-        <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8 border border-slate-700">
-          
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-            {quickAddItems.map((item) => (
+        {/* INPUT FORM */}
+        <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 backdrop-blur-sm shadow-xl">
+          <form onSubmit={addItem} className="space-y-4">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1 font-semibold">Product Name</label>
+              <input
+                type="text"
+                placeholder="e.g., Milk, Eggs..."
+                value={newItem.name}
+                onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-slate-600"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1 font-semibold">Expiry Date</label>
+              <input
+                type="date"
+                value={newItem.expiryDate}
+                onChange={(e) => setNewItem({...newItem, expiryDate: e.target.value})}
+                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-300" 
+              />
+            </div>
+
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold p-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Plus size={20} /> Add to Fridge
+            </button>
+          </form>
+
+          {/* QUICK ADD */}
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {['🥛 Milk', '🥚 Eggs', '🧀 Cheese', '🥗 Salad'].map((item) => (
               <button 
-                key={item.name}
-                onClick={() => fillForm(`${item.emoji} ${item.name}`)}
-                className="bg-slate-700 hover:bg-slate-600 text-sm px-3 py-1 rounded-full transition-colors whitespace-nowrap border border-slate-600"
+                key={item} 
+                onClick={() => quickAdd(item.split(' ')[1])}
+                className="bg-slate-700/50 hover:bg-slate-600 px-3 py-1 rounded-full text-xs whitespace-nowrap border border-slate-600 transition-colors"
               >
-                {item.emoji} {item.name}
+                {item}
               </button>
             ))}
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 text-black">
-            <input 
-              placeholder="Item name (e.g., Greek Yogurt)" 
-              className="border border-slate-600 p-3 rounded-lg flex-grow outline-none focus:ring-2 focus:ring-green-500 bg-slate-100"
-              value={form.name}
-              onChange={e => setForm({...form, name: e.target.value})}
-            />
-            <input 
-              type="date" 
-              className="border border-slate-600 p-3 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-slate-100"
-              value={form.expiryDate}
-              onChange={e => setForm({...form, expiryDate: e.target.value})}
-            />
-            <button 
-              onClick={addProduct}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold transition-transform active:scale-95 shadow-lg"
-            >
-              Add Item
-            </button>
-          </div>
         </div>
 
-        {/* --- Search Bar --- */}
-        <div className="mb-6">
+        {/* SEARCH */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
           <input 
-            placeholder="🔍 Search your fridge..." 
-            className="w-full bg-slate-800 border border-slate-700 p-3 rounded-lg text-white outline-none focus:border-green-500 placeholder-gray-500"
+            type="text" 
+            placeholder="Search your fridge..." 
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-800/30 border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-blue-500/50 transition-all"
           />
         </div>
 
-        {/* --- List --- */}
+        {/* LIST */}
         <div className="space-y-3">
-          {filteredProducts.map(product => {
-            const productDate = new Date(product.expiryDate);
-            const diffTime = productDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            let statusColor = "bg-slate-800 border-l-green-500"; 
-            let textColor = "text-white";
-            let warningText = "";
-
-            if (diffDays < 0) {
-              statusColor = "bg-red-900/10 border-l-red-500 border border-red-900/30";
-              textColor = "text-red-400";
-              warningText = "⚠️ EXPIRED";
-            } else if (diffDays >= 0 && diffDays <= 3) {
-              statusColor = "bg-yellow-900/10 border-l-yellow-500 border border-yellow-900/30";
-              textColor = "text-yellow-400";
-              warningText = "⚠️ EAT SOON";
-            }
-
-            return (
+          {filteredAndSortedItems.length === 0 ? (
+            <div className="text-center py-10 text-slate-500">
+              <p>Fridge is empty 🕸️</p>
+            </div>
+          ) : (
+            filteredAndSortedItems.map((item) => (
               <div 
-                key={product.id} 
-                className={`flex justify-between items-center p-4 rounded-lg border-l-4 shadow-sm transition-all hover:translate-x-1 ${statusColor}`}
+                key={item.id} 
+                className={`flex items-center justify-between p-4 rounded-xl border backdrop-blur-sm transition-all hover:scale-[1.02] ${getStatusColor(item.expiryDate)}`}
               >
                 <div>
-                  <span className={`text-lg font-bold block ${textColor}`}>
-                    {product.name}
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    Expires: {product.expiryDate} 
-                    <span className={`font-bold ml-2 ${textColor}`}>
-                       {warningText || `(${diffDays} days left)`}
-                    </span>
-                  </span>
+                  <h3 className="font-semibold text-lg">{item.name}</h3>
+                  <div className="flex items-center gap-2 text-xs opacity-80 mt-1">
+                    <AlertCircle size={12} />
+                    <span>Expires: {item.expiryDate}</span>
+                  </div>
                 </div>
                 <button 
-                  onClick={() => deleteProduct(product.id)}
-                  className="text-gray-500 hover:text-red-400 p-2 transition-colors"
-                  title="Delete Item"
+                  onClick={() => deleteItem(item.id)}
+                  className="p-2 hover:bg-slate-900/20 rounded-lg transition-colors text-current opacity-70 hover:opacity-100"
                 >
-                  🗑️
+                  <Trash2 size={18} />
                 </button>
               </div>
-            );
-          })}
-          
-          {products.length === 0 && (
-            <div className="text-center py-10 opacity-50">
-              <div className="text-6xl mb-2">🕸️</div>
-              <p className="text-xl">Your fridge is empty.</p>
-            </div>
-          )}
-           {products.length > 0 && filteredProducts.length === 0 && (
-            <p className="text-center text-gray-500 mt-10">No matching products found.</p>
+            ))
           )}
         </div>
+
       </div>
     </div>
   );
