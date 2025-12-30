@@ -7,7 +7,7 @@ export default function FridgeTracker() {
   const [newItem, setNewItem] = useState({ name: '', expiryDate: '', category: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Încărcăm datele din memoria telefonului când se deschide pagina
+  // 1. Încărcăm datele din memoria telefonului
   useEffect(() => {
     const savedItems = localStorage.getItem('fridgeItems');
     if (savedItems) {
@@ -15,7 +15,7 @@ export default function FridgeTracker() {
     }
   }, []);
 
-  // 2. Funcție care salvează lista în memoria telefonului
+  // 2. Funcție salvare
   const saveToPhone = (updatedItems) => {
     setItems(updatedItems);
     localStorage.setItem('fridgeItems', JSON.stringify(updatedItems));
@@ -26,52 +26,55 @@ export default function FridgeTracker() {
     if (!newItem.name || !newItem.expiryDate) return;
 
     const itemToAdd = { 
-      id: Date.now(), // Generăm un ID unic bazat pe timp
+      id: Date.now(), 
       ...newItem 
     };
     
-    // Adăugăm noul produs la listă și salvăm
     const updatedList = [...items, itemToAdd];
     saveToPhone(updatedList);
-    
-    // Resetăm formularul
     setNewItem({ name: '', expiryDate: '', category: '' });
   };
 
   const deleteItem = (id) => {
-    // Ștergem produsul și salvăm noua listă
     const updatedList = items.filter(item => item.id !== id);
     saveToPhone(updatedList);
   };
 
-  // Logica de culori
+  // --- LOGICA DE CULORI (MODIFICATĂ PENTRU GALBEN AZI) ---
   const getStatusColor = (dateString) => {
+    if (!dateString) return 'bg-slate-800';
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const expiry = new Date(dateString);
-    
+    today.setHours(0, 0, 0, 0); // Resetăm ceasul la 00:00 azi
+
+    // Construim data corect (fără probleme de fus orar)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const expiry = new Date(year, month - 1, day); 
+
     const diffTime = expiry - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // REGULI:
+    // < 0: Trecut (Ieri sau mai demult) -> ROSU
+    // <= 3: Azi (0) + Următoarele 3 zile -> GALBEN
+    // > 3: Viitor -> VERDE
+    
     if (diffDays < 0) return 'bg-red-500/20 text-red-200 border-red-500/50'; 
     if (diffDays <= 3) return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/50';
     return 'bg-green-500/20 text-green-200 border-green-500/50';
   };
 
-  // Logica de sortare și filtrare
   const filteredAndSortedItems = items
     .filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
 
-  // --- QUICK ADD BUTTONS (MODIFICAT) ---
-  // Acum doar completează formularul, NU salvează direct.
+  // --- QUICK ADD BUTTONS ---
   const quickAdd = (name) => {
     const today = new Date();
     const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7); // Pune automat data peste 7 zile
+    nextWeek.setDate(today.getDate() + 7); 
     const dateStr = nextWeek.toISOString().split('T')[0];
     
-    // Umplem câmpurile de sus ca să poți edita data dacă vrei
     setNewItem({ 
         name: name, 
         expiryDate: dateStr, 
@@ -129,7 +132,6 @@ export default function FridgeTracker() {
               <button 
                 key={item} 
                 onClick={() => quickAdd(item.split(' ')[1])}
-                // Adăugat type="button" ca să nu dea submit la form accidental
                 type="button" 
                 className="bg-slate-700/50 hover:bg-slate-600 px-3 py-1 rounded-full text-xs whitespace-nowrap border border-slate-600 transition-colors"
               >
