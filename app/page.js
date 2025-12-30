@@ -34,6 +34,7 @@ export default function FridgeTracker() {
     const updatedList = [...items, itemToAdd];
     saveToPhone(updatedList);
     
+    // Resetăm formularul
     setNewItem({ name: '', expiryDate: '', category: '' });
   };
 
@@ -43,7 +44,7 @@ export default function FridgeTracker() {
     saveToPhone(updatedList);
   };
 
-  // Logica de culori (Rămâne la fel)
+  // Logica de culori
   const getStatusColor = (dateString) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -57,21 +58,25 @@ export default function FridgeTracker() {
     return 'bg-green-500/20 text-green-200 border-green-500/50';
   };
 
-  // Logica de sortare și filtrare (Rămâne la fel)
+  // Logica de sortare și filtrare
   const filteredAndSortedItems = items
     .filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
 
-  // QUICK ADD BUTTONS
+  // --- QUICK ADD BUTTONS (MODIFICAT) ---
+  // Acum doar completează formularul, NU salvează direct.
   const quickAdd = (name) => {
     const today = new Date();
     const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
+    nextWeek.setDate(today.getDate() + 7); // Pune automat data peste 7 zile
     const dateStr = nextWeek.toISOString().split('T')[0];
     
-    const itemToAdd = { id: Date.now(), name, expiryDate: dateStr, category: 'General' };
-    const updatedList = [...items, itemToAdd];
-    saveToPhone(updatedList);
+    // Umplem câmpurile de sus ca să poți edita data dacă vrei
+    setNewItem({ 
+        name: name, 
+        expiryDate: dateStr, 
+        category: 'General' 
+    });
   };
 
   return (
@@ -124,6 +129,8 @@ export default function FridgeTracker() {
               <button 
                 key={item} 
                 onClick={() => quickAdd(item.split(' ')[1])}
+                // Adăugat type="button" ca să nu dea submit la form accidental
+                type="button" 
                 className="bg-slate-700/50 hover:bg-slate-600 px-3 py-1 rounded-full text-xs whitespace-nowrap border border-slate-600 transition-colors"
               >
                 {item}
